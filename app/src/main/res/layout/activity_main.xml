@@ -191,7 +191,7 @@
                         android:id="@+id/tIEDTcantidad"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:hint="Cantidad de mezcla en (Kg)"
+                        android:hint="Cantidad de mezcla en (se recomienda 100 kg)"
                         android:inputType="number" />
 
                 </com.google.android.material.textfield.TextInputLayout>

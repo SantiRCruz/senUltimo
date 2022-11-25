@@ -87,6 +87,9 @@ class MainActivity : AppCompatActivity() {
             setDisable(false)
         }
         binding.btnContinuar.setOnClickListener {
+            if (!validateCantidad()) {
+                return@setOnClickListener
+            }
             if (binding.tIEDTcantidad.text.toString().isNotEmpty()) {
                 Constants.cantidadMezcla = binding.tIEDTcantidad.text.toString().toInt()
             }
@@ -99,13 +102,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun validateCantidad(): Boolean {
+        return if (binding.tIEDTcantidad.text.toString().isEmpty()
+        ) {
+            binding.tIEDTcantidad.error = null
+            true
+        } else if (binding.tIEDTcantidad.text.toString().toInt() > 100) {
+            binding.tIEDTcantidad.error = "Este campo no puede ser mayor a 100"
+            false
+        } else {
+            binding.tIEDTcantidad.error = null
+            true
+        }
+    }
+
     private fun setTable(data: RequerimientoAnimal) {
         Log.e("setTable: ", data.toString())
         binding.tvProteina.text = data.proteina
-        binding.tvEnergia.text = if (data.e_m_ave != 0.0000){
+        binding.tvEnergia.text = if (data.e_m_ave != 0.0000) {
             Constants.tipoEnergia = "ave"
             data.e_m_ave.toString()
-        } else{
+        } else {
             Constants.tipoEnergia = "cerdo"
             data.e_d_cerdo.toString()
         }

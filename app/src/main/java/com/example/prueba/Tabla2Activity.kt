@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
+import androidx.lifecycle.Lifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.consumokotlinsimple.models.LogIn
 import com.example.prueba.adapters.Table2Adapter
@@ -16,9 +17,13 @@ import com.example.prueba.databinding.ActivityTabla2Binding
 import com.example.prueba.databinding.ActivityTablaBinding
 import com.example.prueba.databinding.AddPriceBinding
 import com.example.prueba.models.Alimento
+import com.example.prueba.models.DefaultResponse
 import com.example.prueba.models.Especie
 import com.example.prueba.models.LogIn.RestLogin
 import com.example.prueba.models.Table
+import com.example.prueba.models.alimento.PostAlimentoByRegionAndNutriente
+import com.example.prueba.models.alimento.ResponseAliementoByRegionAndNutriente
+import com.example.prueba.models.especie.EspecieResult
 import com.example.prueba.models.preparacion.PostPreparacion
 import com.example.prueba.models.preparacion.ResponsePreparacion
 import com.example.prueba.models.preparacionAnimales.PostPreparacionAnimal
@@ -40,155 +45,11 @@ class Tabla2Activity : AppCompatActivity() {
     private var calcioSeleccionada: Alimento? = null
     private var cantPostPreparacionAnimal = 0
     private var preparacionAnimalList = mutableListOf<PostPreparacionAnimal>()
-    private val ingredientesEnergiaList = mutableListOf(
-        Alimento(
-            1,
-            0.0,
-            "Harina de Maiz",
-            "",
-            "14.00",
-            "",
-            "8.50",
-            "1.80",
-            "",
-            "0.1",
-            "0.3",
-            "",
-            "",
-            "0.2",
-            "0.2",
-            "0.3",
-            "",
-            "",
-        ),
-    )
-    private val ingredientesProteinaList = mutableListOf(
-        Alimento(
-            1,
-            0.0,
-            "Torta de Soya",
-            "",
-            "10.00",
-            "",
-            "43.5",
-            "6.70",
-            "",
-            "0.27",
-            "0.63",
-            "",
-            "",
-            "2.86",
-            "0.58",
-            "1.18",
-            "",
-            "",
-        ),
-    )
-    private val ingredientesFosforo = mutableListOf(
-        Alimento(
-            1,
-            0.0,
-            "Fosfato Dicalcico",
-            "",
-            "0.0",
-            "",
-            "0.0",
-            "0.0",
-            "",
-            "0.21",
-            "16.0",
-            "",
-            "",
-            "0.0",
-            "0.0",
-            "0.0",
-            "",
-            "",
-        ),
-        Alimento(
-            2,
-            0.0,
-            "Fosfato Monodicalcico",
-            "",
-            "0.0",
-            "",
-            "0.0",
-            "0.0",
-            "",
-            "20.00",
-            "21.00",
-            "",
-            "",
-            "0.0",
-            "0.0",
-            "0.0",
-            "",
-            "",
-        ),
-        Alimento(
-            2,
-            0.0,
-            "Harina de huesos",
-            "99.00",
-            "0.0",
-            "",
-            "0.0",
-            "0.0",
-            "",
-            "26.00",
-            "12.00",
-            "0.4",
-            "",
-            "0.0",
-            "0.0",
-            "0.0",
-            "",
-            "",
-        ),
-    )
+    private val ingredientesEnergiaList = mutableListOf<Alimento>()
+    private var ingredientesProteinaList = mutableListOf<Alimento>()
+    private val ingredientesFosforo = mutableListOf<Alimento>()
 
-    private val ingredientesCalcio = mutableListOf(
-        Alimento(
-            1,
-            0.0,
-            "Harina de carne",
-            "92.90",
-            "2.62",
-            "2.64",
-            "47.20",
-            "2.20",
-            "12.70",
-            "11.16",
-            "5.41",
-            "1.60",
-            "3.60",
-            "3.30",
-            "0.70",
-            "1.00",
-            "2.20",
-            "0.60",
-        ),
-        Alimento(
-            2,
-            0.0,
-            "Harina carne-hueso 50%",
-            "93.0",
-            "1.98",
-            "2.43",
-            "51.00",
-            "2.00",
-            "10.00",
-            "10.60",
-            "5.10",
-            "0.73",
-            "3.30",
-            "3.50",
-            "0.65",
-            "1.25",
-            "1.80",
-            "0.30",
-        ),
-    )
+    private val ingredientesCalcio = mutableListOf<Alimento>()
 
     private val list = mutableListOf(
         Table(
@@ -277,11 +138,288 @@ class Tabla2Activity : AppCompatActivity() {
         setContentView(binding.root)
         this.supportActionBar?.hide()
 
-        setUpEnergia(ingredientesEnergiaList)
-        setUpProteina(ingredientesProteinaList)
+        obtainProteina()
+        obtainEnergia()
+        obtainFosforo()
+        obtainCalcio()
         clicks()
 
+    }
 
+    private fun obtainCalcio() {
+        val retro = Retrofit.Builder()
+            .baseUrl(Constants.URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val service: ApiService = retro.create(ApiService::class.java)
+        service.fetchalimentoByRegionAndTipoNutriente(
+            PostAlimentoByRegionAndNutriente(
+                4,
+                Constants.actualUser!!.userForToken.region_id.toInt()
+            )
+        ).enqueue(object :
+            Callback<DefaultResponse<ResponseAliementoByRegionAndNutriente>> {
+            override fun onResponse(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                response: Response<DefaultResponse<ResponseAliementoByRegionAndNutriente>>
+            ) {
+                Log.e("onResponse: ", response.body().toString())
+                if (response.body()!!.status == "success") {
+                    Log.e("onResponse: ", response.body().toString())
+                    response.body()!!.results.forEach { alimento ->
+                        ingredientesCalcio.add(
+                            Alimento(
+                                alimento.id_alimentos,
+                                0.0,
+                                alimento.nombre_alimento,
+                                alimento.materia_seca,
+                                alimento.e_m_aves,
+                                alimento.e_m_cerdos,
+                                alimento.proteina_cruda,
+                                alimento.fibra_cruda,
+                                alimento.ext_etereo,
+                                alimento.calcio,
+                                alimento.fosf_disp,
+                                alimento.sodio,
+                                alimento.arginina,
+                                alimento.lisina,
+                                alimento.metionina,
+                                alimento.met_cis,
+                                alimento.treonina,
+                                alimento.triptofano,
+                            )
+                        )
+                    }
+                    val calcio = mutableListOf<String>()
+                    ingredientesCalcio.forEach {
+                        calcio.add(it.ingrediente)
+                    }
+                    setUpCalcio(calcio)
+                } else if (response.body()!!.status == "empty") {
+                    Snackbar.make(binding.root, "Lo sentimos en su ubicacion no existen alimento de este nutriente", Snackbar.LENGTH_SHORT)
+                        .show()
+                } else {
+                    Snackbar.make(binding.root, "Error al traer los datos", Snackbar.LENGTH_SHORT)
+                        .show()
+                }
+            }
+
+            override fun onFailure(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                t: Throwable
+            ) {
+                Log.e("onFailure: ", t.toString())
+                Snackbar.make(binding.root, "Error de servidor", Snackbar.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun obtainFosforo() {
+        val retro = Retrofit.Builder()
+            .baseUrl(Constants.URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val service: ApiService = retro.create(ApiService::class.java)
+        service.fetchalimentoByRegionAndTipoNutriente(
+            PostAlimentoByRegionAndNutriente(
+                3,
+                Constants.actualUser!!.userForToken.region_id.toInt()
+            )
+        ).enqueue(object :
+            Callback<DefaultResponse<ResponseAliementoByRegionAndNutriente>> {
+            override fun onResponse(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                response: Response<DefaultResponse<ResponseAliementoByRegionAndNutriente>>
+            ) {
+                Log.e("onResponse: ", response.body().toString())
+                if (response.body()!!.status == "success") {
+                    Log.e("onResponse: ", response.body().toString())
+                    response.body()!!.results.forEach { alimento ->
+                        ingredientesFosforo.add(
+                            Alimento(
+                                alimento.id_alimentos,
+                                0.0,
+                                alimento.nombre_alimento,
+                                alimento.materia_seca,
+                                alimento.e_m_aves,
+                                alimento.e_m_cerdos,
+                                alimento.proteina_cruda,
+                                alimento.fibra_cruda,
+                                alimento.ext_etereo,
+                                alimento.calcio,
+                                alimento.fosf_disp,
+                                alimento.sodio,
+                                alimento.arginina,
+                                alimento.lisina,
+                                alimento.metionina,
+                                alimento.met_cis,
+                                alimento.treonina,
+                                alimento.triptofano,
+                            )
+                        )
+                    }
+                    val fosforo = mutableListOf<String>()
+                    ingredientesFosforo.forEach {
+                        fosforo.add(it.ingrediente)
+                    }
+                    setUpFosforo(fosforo)
+                } else if (response.body()!!.status == "empty") {
+                    Snackbar.make(binding.root, "Lo sentimos en su ubicacion no existen alimento de este nutriente", Snackbar.LENGTH_SHORT)
+                        .show()
+                } else {
+                    Snackbar.make(binding.root, "Error al traer los datos", Snackbar.LENGTH_SHORT)
+                        .show()
+                }
+            }
+
+            override fun onFailure(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                t: Throwable
+            ) {
+                Log.e("onFailure: ", t.toString())
+                Snackbar.make(binding.root, "Error de servidor", Snackbar.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun obtainProteina() {
+        val retro = Retrofit.Builder()
+            .baseUrl(Constants.URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val service: ApiService = retro.create(ApiService::class.java)
+        service.fetchalimentoByRegionAndTipoNutriente(
+            PostAlimentoByRegionAndNutriente(
+                2,
+                Constants.actualUser!!.userForToken.region_id.toInt()
+            )
+        ).enqueue(object :
+            Callback<DefaultResponse<ResponseAliementoByRegionAndNutriente>> {
+            override fun onResponse(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                response: Response<DefaultResponse<ResponseAliementoByRegionAndNutriente>>
+            ) {
+                Log.e("onResponse: ", response.body().toString())
+                if (response.body()!!.status == "success") {
+                    Log.e("onResponse: ", response.body().toString())
+                    response.body()!!.results.forEach { alimento ->
+                        ingredientesProteinaList.add(
+                            Alimento(
+                                alimento.id_alimentos,
+                                0.0,
+                                alimento.nombre_alimento,
+                                alimento.materia_seca,
+                                alimento.e_m_aves,
+                                alimento.e_m_cerdos,
+                                alimento.proteina_cruda,
+                                alimento.fibra_cruda,
+                                alimento.ext_etereo,
+                                alimento.calcio,
+                                alimento.fosf_disp,
+                                alimento.sodio,
+                                alimento.arginina,
+                                alimento.lisina,
+                                alimento.metionina,
+                                alimento.met_cis,
+                                alimento.treonina,
+                                alimento.triptofano,
+                            )
+                        )
+                    }
+                    val proteina = mutableListOf<String>()
+                    ingredientesProteinaList.forEach {
+                        proteina.add(it.ingrediente)
+                    }
+                    setUpProteina(proteina)
+                } else if (response.body()!!.status == "empty") {
+                    Snackbar.make(binding.root, "Lo sentimos en su ubicacion no existen alimento de este nutriente", Snackbar.LENGTH_SHORT)
+                        .show()
+                } else {
+                    Snackbar.make(binding.root, "Error al traer los datos", Snackbar.LENGTH_SHORT)
+                        .show()
+                }
+            }
+
+            override fun onFailure(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                t: Throwable
+            ) {
+                Log.e("onFailure: ", t.toString())
+                Snackbar.make(binding.root, "Error de servidor", Snackbar.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun obtainEnergia(){
+        val retro = Retrofit.Builder()
+            .baseUrl(Constants.URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val service: ApiService = retro.create(ApiService::class.java)
+        service.fetchalimentoByRegionAndTipoNutriente(
+            PostAlimentoByRegionAndNutriente(
+                1,
+                Constants.actualUser!!.userForToken.region_id.toInt()
+            )
+        ).enqueue(object :
+            Callback<DefaultResponse<ResponseAliementoByRegionAndNutriente>> {
+            override fun onResponse(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                response: Response<DefaultResponse<ResponseAliementoByRegionAndNutriente>>
+            ) {
+                Log.e("onResponse: ", response.body().toString())
+                if (response.body()!!.status == "success") {
+                    Log.e("onResponse: ", response.body().toString())
+                    response.body()!!.results.forEach { alimento ->
+                        ingredientesEnergiaList.add(
+                            Alimento(
+                                alimento.id_alimentos,
+                                0.0,
+                                alimento.nombre_alimento,
+                                alimento.materia_seca,
+                                alimento.e_m_aves,
+                                alimento.e_m_cerdos,
+                                alimento.proteina_cruda,
+                                alimento.fibra_cruda,
+                                alimento.ext_etereo,
+                                alimento.calcio,
+                                alimento.fosf_disp,
+                                alimento.sodio,
+                                alimento.arginina,
+                                alimento.lisina,
+                                alimento.metionina,
+                                alimento.met_cis,
+                                alimento.treonina,
+                                alimento.triptofano,
+                            )
+                        )
+                    }
+                    val energia = mutableListOf<String>()
+                    ingredientesEnergiaList.forEach {
+                        energia.add(it.ingrediente)
+                    }
+                    setUpEnergia(energia)
+                } else if (response.body()!!.status == "empty") {
+                    Snackbar.make(binding.root, "Lo sentimos en su ubicacion no existen alimento de este nutriente", Snackbar.LENGTH_SHORT)
+                        .show()
+                } else {
+                    Snackbar.make(binding.root, "Error al traer los datos", Snackbar.LENGTH_SHORT)
+                        .show()
+                }
+            }
+
+            override fun onFailure(
+                call: Call<DefaultResponse<ResponseAliementoByRegionAndNutriente>>,
+                t: Throwable
+            ) {
+                Log.e("onFailure: ", t.toString())
+                Snackbar.make(binding.root, "Error de servidor", Snackbar.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun clicks() {
@@ -315,7 +453,6 @@ class Tabla2Activity : AppCompatActivity() {
             encontrarCantidadesFos()
             binding.lLFosforo.visibility = View.GONE
             binding.llCalcio.visibility = View.VISIBLE
-            setUpCalcio(ingredientesCalcio)
         }
         binding.btnCalcio.setOnClickListener {
             if (calcioSeleccionada == null) {
@@ -333,7 +470,7 @@ class Tabla2Activity : AppCompatActivity() {
     }
 
     private fun postPreparacion() {
-        Log.e("postPreparacion: ",Constants.faseActual.id_requerimiento_animal.toString() )
+        Log.e("postPreparacion: ", Constants.faseActual.id_requerimiento_animal.toString())
         val retro = Retrofit.Builder()
             .baseUrl(Constants.URL)
             .addConverterFactory(GsonConverterFactory.create())
@@ -354,28 +491,28 @@ class Tabla2Activity : AppCompatActivity() {
                 response: Response<ResponsePreparacion>
             ) {
                 if (response.body()?.status == "success") {
-                    Log.e("onResponse: ", response.body().toString() )
+                    Log.e("onResponse: ", response.body().toString())
                     preparacionAnimalList = mutableListOf(
                         PostPreparacionAnimal(
-                            31,
+                            proteinaSeleccionada!!.id,
                             list[1].cantidad.toDouble(),
                             0.0,
                             response.body()!!.results.id_preparacion,
                         ),
                         PostPreparacionAnimal(
-                            31,
+                            proteinaSeleccionada!!.id,
                             list[2].cantidad.toDouble(),
                             0.0,
                             response.body()!!.results.id_preparacion,
                         ),
                         PostPreparacionAnimal(
-                            31,
+                            proteinaSeleccionada!!.id,
                             list[3].cantidad.toDouble(),
                             0.0,
                             response.body()!!.results.id_preparacion,
                         ),
                         PostPreparacionAnimal(
-                            31,
+                            proteinaSeleccionada!!.id,
                             list[4].cantidad.toDouble(),
                             0.0,
                             response.body()!!.results.id_preparacion,
@@ -384,6 +521,8 @@ class Tabla2Activity : AppCompatActivity() {
 
                     postPreparacionAnimal()
                 } else {
+                    Log.e("onResponse: ",response.body().toString() )
+                    Log.e("onResponse: ",response.toString() )
                     Snackbar.make(
                         binding.root,
                         "No se puedo guardar la preparacion",
@@ -408,7 +547,7 @@ class Tabla2Activity : AppCompatActivity() {
         val service: ApiService = retro.create(ApiService::class.java)
 
         preparacionAnimalList.forEach {
-            Log.e("postPreparacionAnimalForEach: ", it.toString() )
+            Log.e("postPreparacionAnimalForEach: ", it.toString())
             service.postPreparacionAlimento(it).enqueue(object :
                 Callback<ResponsePreparacionAnimal> {
                 override fun onResponse(
@@ -416,18 +555,23 @@ class Tabla2Activity : AppCompatActivity() {
                     response: Response<ResponsePreparacionAnimal>
                 ) {
                     if (response.body()?.status == "success") {
-                        Log.e("onResponse: ",response.body().toString() )
+                        Log.e("onResponse: ", response.body().toString())
                         Snackbar.make(
                             binding.root,
                             "Se guardo correctamente",
                             Snackbar.LENGTH_SHORT
                         ).show()
                         cantPostPreparacionAnimal++
-                        if (cantPostPreparacionAnimal == 4){
-                            val i = Intent(applicationContext,MainActivity::class.java)
+                        if (cantPostPreparacionAnimal == 4) {
+                            Snackbar.make(
+                                binding.root,
+                                "Se ha guardado satisfactoriamente su preparacion",
+                                Snackbar.LENGTH_SHORT
+                            ).show()
+                            val i = Intent(applicationContext, MainActivity::class.java)
                             startActivity(i)
                             finish()
-                        }else{
+                        } else {
                             Snackbar.make(
                                 binding.root,
                                 "Error al guardar la preparacion",
@@ -435,6 +579,8 @@ class Tabla2Activity : AppCompatActivity() {
                             ).show()
                         }
                     } else {
+                        Log.e("onResponse: ",response.body().toString() )
+                        Log.e("onResponse: ",response.toString() )
                         Snackbar.make(
                             binding.root,
                             "No se puedo guardar la preparacion",
@@ -442,6 +588,7 @@ class Tabla2Activity : AppCompatActivity() {
                         ).show()
                     }
                 }
+
                 override fun onFailure(call: Call<ResponsePreparacionAnimal>, t: Throwable) {
                     Log.e("onFailure: ", t.toString())
                     Snackbar.make(binding.root, "Error de servidor", Snackbar.LENGTH_SHORT).show()
@@ -494,12 +641,8 @@ class Tabla2Activity : AppCompatActivity() {
         setUpRecycler(list)
     }
 
-    private fun setUpCalcio(calcio: MutableList<Alimento>) {
-        val list = mutableListOf<String>()
-        calcio.forEach {
-            list.add(it.ingrediente)
-        }
-        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, list)
+    private fun setUpCalcio(calcio: MutableList<String>) {
+        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, calcio)
         binding.actvCalcio.setAdapter(adapter)
     }
 
@@ -582,6 +725,8 @@ class Tabla2Activity : AppCompatActivity() {
     }
 
     private fun encontrarCantidadesPE() {
+        Log.e("encontrarCantidadesPE: ","${energiaSeleccionada!!.proteina.toDouble()} > ${Constants.faseActual.proteina.toDouble()}" )
+        Log.e("encontrarCantidadesPE: ","${proteinaSeleccionada!!.proteina.toDouble()} > ${Constants.faseActual.proteina.toDouble()}" )
         val difEnergia: Double =
             if (energiaSeleccionada!!.proteina.toDouble() > Constants.faseActual.proteina.toDouble()) {
                 (energiaSeleccionada!!.proteina.toDouble() - Constants.faseActual.proteina.toDouble())
@@ -617,16 +762,11 @@ class Tabla2Activity : AppCompatActivity() {
 
         binding.linearLayout5.visibility = View.GONE
         binding.lLFosforo.visibility = View.VISIBLE
-        setUpFosforo(ingredientesFosforo)
         setUpRecycler(list)
     }
 
-    private fun setUpFosforo(fosforo: MutableList<Alimento>) {
-        val list = mutableListOf<String>()
-        fosforo.forEach {
-            list.add(it.ingrediente)
-        }
-        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, list)
+    private fun setUpFosforo(fosforo: MutableList<String>) {
+        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, fosforo)
         binding.actvFosforo.setAdapter(adapter)
     }
 
@@ -641,6 +781,7 @@ class Tabla2Activity : AppCompatActivity() {
     }
 
     private fun balanceProteina() {
+        Log.e("balanceProteina: ","${energiaSeleccionada!!.cantidad} * ${energiaSeleccionada!!.proteina.toDouble()} / $baseCien")
         val aporteProteinaEnerigia =
             (energiaSeleccionada!!.cantidad * energiaSeleccionada!!.proteina.toDouble()) / baseCien
         val aporteProteinaProteina =
@@ -723,21 +864,13 @@ class Tabla2Activity : AppCompatActivity() {
         binding.rv.layoutManager = LinearLayoutManager(applicationContext)
     }
 
-    private fun setUpEnergia(especies: MutableList<Alimento>) {
-        val list = mutableListOf<String>()
-        especies.forEach {
-            list.add(it.ingrediente)
-        }
-        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, list)
+    private fun setUpEnergia(energia: MutableList<String>) {
+        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, energia)
         binding.actvEnergia.setAdapter(adapter)
     }
 
-    private fun setUpProteina(especies: MutableList<Alimento>) {
-        val list = mutableListOf<String>()
-        especies.forEach {
-            list.add(it.ingrediente)
-        }
-        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, list)
+    private fun setUpProteina(proteina: MutableList<String>) {
+        val adapter = ArrayAdapter(applicationContext, R.layout.list_item, proteina)
         binding.actvProteina.setAdapter(adapter)
     }
 }
